@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Serengeti National Park</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-fullscreen@1.0.2/dist/leaflet.fullscreen.css"/>
+<style>
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,sans-serif}
+.lx-app{display:flex;height:100vh;overflow:hidden}
+
+/* sidebar */
+.lx-sb{
+  width:278px;flex-shrink:0;display:flex;flex-direction:column;
+  overflow-y:auto;z-index:500;box-shadow:2px 0 16px rgba(0,0,0,.13);
+  transition:background .25s,color .25s
+}
+.lx-sb.light{background:#f7f7f5;color:#1a1a1a}
+.lx-sb.dark {background:#1b1b1d;color:#ebebea}
+#lx-map{flex:1;min-width:0}
+
+/* header */
+.lx-hdr{padding:16px 16px 12px;border-bottom:1px solid rgba(128,128,128,.13)}
+.lx-title{font-size:15px;font-weight:700;line-height:1.35;margin-bottom:3px}
+.lx-sub{font-size:11px;opacity:.58;line-height:1.5}
+.lx-badge{
+  display:inline-block;background:rgba(128,128,128,.12);border-radius:10px;
+  padding:2px 9px;font-size:10px;font-weight:600;margin-top:6px
+}
+
+/* sections */
+.lx-sec{padding:12px 15px;border-bottom:1px solid rgba(128,128,128,.09)}
+.lx-sec-ttl{
+  font-size:9.5px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;opacity:.42;margin-bottom:8px
+}
+
+/* legend header row */
+.leg-hdr{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:6px
+}
+.leg-hdr-lbl{font-size:11.5px;font-weight:600;opacity:.55}
+.leg-toggle-all{
+  font-size:10px;opacity:.5;cursor:pointer;border:none;background:none;
+  color:inherit;padding:0;text-decoration:underline
+}
+.leg-toggle-all:hover{opacity:.9}
+
+/* legend checkbox rows */
+.leg-item{
+  display:flex;align-items:center;gap:8px;padding:4px 5px;
+  cursor:pointer;border-radius:5px;user-select:none;
+  transition:background .1s
+}
+.leg-item:hover{background:rgba(128,128,128,.09)}
+
+/* custom checkbox */
+.leg-cb{
+  appearance:none;-webkit-appearance:none;
+  width:15px;height:15px;min-width:15px;border-radius:3px;
+  cursor:pointer;border:1.5px solid rgba(128,128,128,.38);
+  background:transparent;position:relative;
+  transition:background .12s,border-color .12s
+}
+.leg-cb:checked{background:#3b82f6;border-color:#3b82f6}
+.leg-cb:checked::after{
+  content:'';position:absolute;left:3px;top:0px;
+  width:5px;height:9px;
+  border:2px solid #fff;border-top:none;border-left:none;
+  transform:rotate(45deg)
+}
+.leg-item.unchecked{opacity:.32}
+.leg-label{font-size:11.5px;flex:1;line-height:1.3}
+
+/* controls */
+.ctrl-row{display:flex;gap:6px;flex-wrap:wrap}
+.ctrl-btn{
+  padding:5px 11px;border-radius:5px;
+  border:1px solid rgba(128,128,128,.22);
+  background:transparent;font-size:11px;cursor:pointer;
+  font-weight:500;color:inherit;transition:background .12s
+}
+.ctrl-btn:hover{background:rgba(128,128,128,.13)}
+.ctrl-btn.full{width:100%;margin-top:0}
+.lx-sel{
+  padding:5px 8px;border-radius:5px;
+  border:1px solid rgba(128,128,128,.22);
+  background:transparent;font-size:11px;cursor:pointer;
+  color:inherit;width:100%;margin-top:8px
+}
+
+/* embed panel */
+.embed-panel{display:none;margin-top:9px}
+.embed-panel.open{display:block}
+.embed-box{
+  width:100%;height:86px;font-size:9.5px;font-family:monospace;
+  resize:none;border-radius:5px;padding:6px 8px;
+  border:1px solid rgba(128,128,128,.22);
+  background:rgba(128,128,128,.06);color:inherit;line-height:1.45
+}
+.embed-copy-btn{
+  margin-top:5px;width:100%;padding:6px;border-radius:5px;
+  border:1px solid rgba(128,128,128,.22);background:transparent;
+  font-size:11px;cursor:pointer;font-weight:600;color:inherit;
+  transition:background .12s,color .12s
+}
+.embed-copy-btn:hover{background:rgba(128,128,128,.12)}
+.embed-copy-btn.copied{background:#22c55e !important;color:#fff !important;
+  border-color:#22c55e !important}
+.embed-hint{font-size:9.5px;opacity:.42;margin-top:5px;line-height:1.5}
+
+/* popup */
+.lx-popup{min-width:180px;max-width:260px;font-size:12px}
+.lx-popup .pop-name{
+  font-size:13px;font-weight:700;margin-bottom:5px;
+  border-bottom:1px solid rgba(128,128,128,.18);padding-bottom:4px
+}
+.lx-popup table{width:100%;border-collapse:collapse}
+.lx-popup td{
+  padding:2.5px 0;font-size:11px;
+  border-bottom:1px solid rgba(128,128,128,.07)
+}
+.lx-popup td:first-child{color:#888;width:42%;font-weight:500}
+.lx-popup td:last-child{font-weight:500;text-align:right;word-break:break-word}
+
+/* tooltip */
+.lx-tip{
+  background:rgba(255,255,255,.96);color:#1a1a1a;
+  padding:4px 10px;border-radius:4px;font-size:12px;font-weight:600;
+  box-shadow:0 2px 8px rgba(0,0,0,.18);pointer-events:none
+}
+.leaflet-container{font-family:inherit}
+.leaflet-control-attribution{font-size:10px}
+
+</style>
+</head>
+<body>
+<div class="lx-app">
+<div class="lx-sb light" id="lx-sb">
+
+  <div class="lx-hdr">
+    <div class="lx-title">Serengeti National Park</div>
+    <div class="lx-sub"></div>
+    <div class="lx-badge" id="lx-count">…</div>
+  </div>
+
+  <!-- LEGEND (checkboxes) -->
+  <div class="lx-sec">
+    <div class="lx-sec-ttl">Legend</div>
+    <div class="leg-hdr">
+      <span class="leg-hdr-lbl">Layers</span>
+      <button class="leg-toggle-all" id="leg-all-btn"
+              onclick="lxToggleAll()">Hide all</button>
+    </div>
+    <div id="leg-list">
+<label class="leg-item" data-label="Serengeti"><input type="checkbox" class="leg-cb" data-label="Serengeti" checked><svg width="18" height="14" viewBox="0 0 18 14" style="flex-shrink:0"><rect x="1" y="1" width="16" height="12" rx="2" fill="#3f8650" fill-opacity="1.0" stroke="#232323" stroke-width="1.5"/></svg><span class="leg-label">Serengeti</span></label>
+    </div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="lx-sec">
+    <div class="lx-sec-ttl">Controls</div>
+    <div class="ctrl-row">
+      <button class="ctrl-btn" id="lx-theme-btn"
+              onclick="lxToggleTheme()">☾ Dark mode</button>
+    </div>
+    <select id="lx-bm-sel" class="lx-sel"
+            onchange="lxSwitchBasemap(this.value)"></select>
+  </div>
+
+  <!-- EMBED CODE -->
+  <div class="lx-sec">
+    <div class="lx-sec-ttl">Embed in website</div>
+    <button class="ctrl-btn full" id="embed-toggle-btn"
+            onclick="lxToggleEmbed()">&lt;/&gt;&nbsp; Show embed code</button>
+    <div class="embed-panel" id="embed-panel">
+      <textarea class="embed-box" id="embed-box" readonly
+                placeholder="Generating…"></textarea>
+      <button class="embed-copy-btn" id="embed-copy-btn"
+              onclick="lxCopyEmbed()">Copy snippet</button>
+      <div class="embed-hint">
+        Paste the &lt;div&gt;+&lt;script&gt; block into your page &lt;body&gt;.<br>
+        Add the two CDN &lt;link&gt; tags to your &lt;head&gt;.
+      </div>
+    </div>
+  </div>
+
+</div>
+  <div id="lx-map"></div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-fullscreen@1.0.2/dist/Leaflet.fullscreen.min.js"></script>
+<script>
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const LX_GEOJSON    = {"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {"_label": "", "SITE_ID": "2575", "SITE_PID": "2575", "SITE_TYPE": "PA", "NAME_ENG": "Serengeti National Park", "NAME": "Parc national de Serengeti", "DESIG": "World Heritage Site (natural or mixed)", "DESIG_ENG": "World Heritage Site (natural or mixed)", "DESIG_TYPE": "International", "IUCN_CAT": "Not Applicable", "INT_CRIT": "(vii);(x)", "REALM": "Terrestrial", "REP_M_AREA": "0.0", "GIS_M_AREA": "0.0", "REP_AREA": "14763.0", "GIS_AREA": "13035.9638936365", "NO_TAKE": "Not Applicable", "NO_TK_AREA": "0.0", "STATUS": "Inscribed", "STATUS_YR": "1981", "GOV_TYPE": "Not Reported", "GOVSUBTYPE": "Not Applicable", "OWN_TYPE": "Not Reported", "OWNSUBTYPE": "Not Applicable", "MANG_AUTH": "Not Reported", "MANG_PLAN": "Not Reported", "VERIF": "State Verified", "METADATAID": "946", "PRNT_ISO3": "TZA", "ISO3": "TZA", "SUPP_INFO": "Not Applicable", "CONS_OBJ": "Not Applicable", "INLND_WTRS": "Not Reported", "OECM_ASMT": "Not Applicable", "_style": {"fill": "#3f8650", "fillOpacity": 1.0, "stroke": "#232323", "strokeOpacity": 1.0, "weight": 0.8, "dashArray": null, "radius": 6, "shape": "circle"}, "_legend_label": "Serengeti"}, "geometry": {"coordinates": [[[[35.000819999999976, -1.5365100000000211], [35.059259999999995, -1.569189999999992], [35.07184000000001, -1.577470000000005], [35.087609999999984, -1.584600000000023], [35.10361, -1.594949999999983], [35.181370000000015, -1.6385700000000156], [35.18203, -1.638879999999972], [35.20834000000002, -1.654139999999984], [35.21190999999999, -1.6557000000000244], [35.25531999999998, -1.6809700000000019], [35.25200000000001, -1.6989100000000121], [35.21010000000001, -2.0613099999999918], [35.259439999999984, -2.1616500000000087], [35.25668999999999, -2.167910000000006], [35.25443000000001, -2.228240000000028], [35.260400000000004, -2.2754899999999907], [35.26440000000002, -2.3005600000000186], [35.26308, -2.3531300000000215], [35.159130000000005, -2.3890400000000227], [35.20636000000002, -2.4842800000000125], [35.220590000000016, -2.4997399999999743], [35.21708000000001, -2.5175199999999904], [35.202920000000006, -2.6195999999999913], [35.189430000000016, -2.692160000000001], [35.18544000000003, -2.710390000000018], [35.18369999999999, -2.7190499999999815], [35.13668000000001, -2.905550000000005], [35.12380000000002, -2.9150900000000206], [35.06290000000001, -2.944529999999986], [35.054790000000025, -2.955370000000016], [35.031079999999974, -2.9672199999999975], [35.01904000000002, -2.9666799999999967], [35.003409999999974, -2.974040000000002], [35.01459, -3.018860000000018], [35.005690000000016, -3.014400000000023], [35.00121999999999, -3.009830000000022], [34.99227000000002, -3.007600000000025], [34.98777000000001, -3.0053800000000024], [34.987750000000005, -3.000789999999995], [34.98556000000002, -2.985340000000008], [34.88107000000002, -2.9023799999999937], [34.88670000000002, -3.218900000000019], [34.832040000000006, -3.233429999999999], [34.775660000000016, -3.319529999999986], [34.72152, -3.186779999999999], [34.716110000000015, -3.177599999999984], [34.71026999999998, -3.172289999999976], [34.70125999999999, -3.1663100000000104], [34.698620000000005, -3.16413], [34.69233000000003, -3.1572699999999827], [34.690139999999985, -3.141470000000027], [34.693730000000016, -3.118749999999977], [34.682860000000005, -3.0733399999999733], [34.67881999999997, -3.046179999999992], [34.66530999999998, -2.9940900000000283], [34.65631000000002, -2.983150000000023], [34.637609999999995, -2.9418499999999876], [34.58461, -2.869289999999978], [34.55770000000001, -2.837530000000015], [34.54426000000001, -2.7920799999999986], [34.52848999999998, -2.760339999999985], [34.517330000000015, -2.7467300000000137], [34.508399999999995, -2.742149999999981], [34.48595, -2.719539999999995], [34.47832, -2.7149900000000002], [34.459040000000016, -2.6968100000000277], [34.454560000000015, -2.6923300000000268], [34.45008999999999, -2.678670000000011], [34.44103000000001, -2.6696000000000026], [34.42764, -2.6605299999999943], [34.41426999999999, -2.6546500000000037], [34.40706, -2.646920000000023], [34.39846, -2.624180000000024], [34.39172000000002, -2.6119699999999852], [34.38727, -2.5925300000000107], [34.376919999999984, -2.583410000000015], [34.35356999999999, -2.5725499999999784], [34.30421999999999, -2.4549600000000282], [34.26159999999999, -2.4199100000000158], [34.09787, -2.3202699999999936], [34.077729999999974, -2.306640000000016], [34.064189999999996, -2.3021699999999896], [34.04629, -2.2930900000000065], [34.03733, -2.279510000000016], [34.03147000000001, -2.273140000000012], [34.02388000000002, -2.271380000000022], [34.02168, -2.270019999999988], [34.02071999999998, -2.2658700000000067], [34.01526999999999, -2.2578100000000063], [34.01765, -2.2477200000000153], [34.014909999999986, -2.24457000000001], [34.01047, -2.2341799999999807], [33.99594999999999, -2.2078200000000265], [33.98662999999999, -2.203809999999976], [33.870439999999974, -2.1903599999999983], [33.87317999999999, -2.1843999999999824], [33.87223999999998, -2.1798800000000256], [33.87495000000001, -2.111879999999985], [33.874480000000005, -2.107270000000028], [33.87130000000002, -2.098329999999976], [33.87130000000002, -2.0937099999999873], [33.87315000000001, -2.090570000000014], [33.875819999999976, -2.0878099999999904], [33.878570000000025, -2.0813699999999926], [33.88200999999998, -2.0809899999999857], [33.885670000000005, -2.0804899999999975], [33.888289999999984, -2.0796100000000024], [33.891039999999975, -2.07826], [33.89425, -2.0769300000000044], [33.89607000000001, -2.0750899999999888], [33.89875999999998, -2.0759800000000155], [33.901790000000005, -2.076880000000017], [33.90537999999998, -2.0760500000000093], [33.91214000000002, -2.0737199999999802], [33.91878000000003, -2.0764800000000037], [33.921490000000006, -2.076790000000017], [33.92469, -2.074099999999987], [33.93193000000002, -2.073750000000018], [33.9332, -2.069999999999993], [33.935940000000016, -2.06959999999998], [33.93813, -2.070949999999982], [33.940740000000005, -2.0705500000000256], [33.93950000000001, -2.0681599999999776], [33.941329999999994, -2.0659600000000182], [33.94402000000002, -2.066849999999988], [33.94803999999999, -2.0663599999999747], [33.95033000000001, -2.0645299999999907], [33.95294999999999, -2.063660000000027], [33.95553000000001, -2.064200000000028], [33.957839999999976, -2.065429999999992], [33.960109999999986, -2.0641899999999964], [33.963660000000004, -2.068649999999991], [33.96863999999999, -2.071739999999977], [33.969989999999996, -2.07414], [33.973040000000026, -2.0745699999999943], [33.97629999999998, -2.0758299999999963], [33.98070999999999, -2.0740499999999997], [33.98473999999999, -2.0732100000000173], [33.98709000000002, -2.07362999999998], [33.99015000000003, -2.0737100000000055], [33.99196999999998, -2.0758799999999837], [33.994129999999984, -2.079119999999989], [34.0, -2.0841199999999844], [34.00180999999998, -2.0872400000000084], [34.00450999999998, -2.087660000000028], [34.04714999999999, -2.0698699999999803], [34.05628999999999, -2.074860000000001], [34.05916000000002, -2.074549999999988], [34.06243999999998, -2.074869999999976], [34.065890000000024, -2.0781499999999937], [34.07044000000002, -2.0799200000000155], [34.07265000000001, -2.0811600000000112], [34.075789999999984, -2.0821900000000255], [34.07900000000001, -2.0812099999999987], [34.08519000000001, -2.0831400000000144], [34.087019999999995, -2.0853200000000243], [34.087879999999984, -2.0885299999999916], [34.09384, -2.090340000000026], [34.09868, -2.089400000000012], [34.10208, -2.089940000000013], [34.10676000000001, -2.0911500000000274], [34.245799999999974, -2.08656000000002], [34.24749000000003, -2.0893199999999865], [34.24970000000002, -2.0902100000000132], [34.25517000000002, -2.092960000000005], [34.25837000000001, -2.091979999999978], [34.261990000000026, -2.092899999999986], [34.26143000000002, -2.0960699999999974], [34.26501999999999, -2.09829000000002], [34.26774999999998, -2.0974199999999996], [34.27077000000003, -2.098799999999983], [34.272609999999986, -2.100619999999992], [34.275300000000016, -2.101040000000012], [34.277660000000026, -2.1009900000000243], [34.27983999999998, -2.1029399999999896], [34.28602000000001, -2.108799999999974], [34.28881999999999, -2.110500000000002], [34.29097999999999, -2.1133800000000065], [34.29554999999999, -2.113740000000007], [34.29818999999998, -2.1119299999999726], [34.30180999999999, -2.1128499999999804], [34.30534, -2.112829999999974], [34.308119999999974, -2.1146699999999896], [34.31482999999997, -2.1142600000000016], [34.31972999999999, -2.116049999999973], [34.32508999999999, -2.117840000000001], [34.32776000000001, -2.119100000000003], [34.328629999999976, -2.1219500000000266], [34.33136000000002, -2.125099999999975], [34.33460000000002, -2.1274199999999723], [34.336299999999994, -2.129599999999982], [34.34395999999998, -2.1292100000000005], [34.34701000000001, -2.1295299999999884], [34.35250000000002, -2.1309800000000223], [34.35735, -2.130040000000008], [34.36097000000001, -2.1309699999999907], [34.36324000000002, -2.1296100000000138], [34.36543999999998, -2.130490000000009], [34.36770000000001, -2.1296199999999885], [34.373069999999984, -2.1314100000000167], [34.375760000000014, -2.1318299999999795], [34.37981000000002, -2.1341899999999896], [34.38783999999998, -2.13724000000002], [34.39494000000002, -2.1400300000000243], [34.39906000000002, -2.1441599999999994], [34.40087, -2.147269999999992], [34.40271999999999, -2.1527399999999943], [34.403639999999996, -2.157730000000015], [34.417880000000025, -2.157289999999989], [34.45690000000002, -2.139940000000024], [34.458230000000015, -2.143160000000023], [34.461419999999976, -2.1467799999999784], [34.46848, -2.1467400000000225], [34.47118999999998, -2.146819999999991], [34.47349000000003, -2.1481699999999933], [34.478380000000016, -2.1540899999999965], [34.48059000000001, -2.1554499999999734], [34.482410000000016, -2.1577399999999898], [34.48469, -2.1603999999999814], [34.50040000000001, -2.1749899999999798], [34.503480000000025, -2.1740100000000098], [34.56709999999998, -2.171730000000025], [34.56632000000002, -2.174890000000005], [34.56261000000001, -2.177160000000015], [34.56121999999999, -2.1808899999999767], [34.55817000000002, -2.1854099999999903], [34.55547999999999, -2.188980000000015], [34.55241000000001, -2.1853699999999776], [34.550070000000005, -2.1848299999999767], [34.548339999999996, -2.1880899999999883], [34.545619999999985, -2.1889600000000087], [34.54286000000002, -2.1866400000000112], [34.54158000000001, -2.19083999999998], [34.540189999999996, -2.1939899999999852], [34.54115999999999, -2.197679999999991], [34.53800000000001, -2.2012599999999907], [34.535720000000026, -2.207560000000001], [34.535739999999976, -2.211209999999994], [34.53348, -2.212220000000002], [34.53262999999998, -2.217620000000011], [34.53622999999999, -2.2193700000000263], [34.539289999999994, -2.2148500000000126], [34.542520000000025, -2.2125800000000027], [34.539319999999975, -2.2092999999999847], [34.542550000000006, -2.2071599999999876], [34.544280000000015, -2.203899999999976], [34.54705000000001, -2.2012599999999907], [34.557349999999985, -2.1984800000000178], [34.561829999999986, -2.197659999999985], [34.56628999999998, -2.197659999999985], [34.571140000000014, -2.1967300000000023], [34.57342, -2.194909999999993], [34.57515000000001, -2.1916499999999814], [34.578329999999994, -2.1912699999999745], [34.581399999999974, -2.190400000000011], [34.58411000000001, -2.1903599999999983], [34.590430000000026, -2.1912399999999934], [34.59352000000001, -2.1899099999999976], [34.59897000000001, -2.188060000000007], [34.602480000000014, -2.1884999999999764], [34.60386999999997, -2.184889999999996], [34.60741999999999, -2.1835699999999747], [34.61013000000003, -2.17892999999998], [34.612810000000025, -2.1798299999999813], [34.61846000000003, -2.1778899999999908], [34.621730000000014, -2.1758199999999874], [34.62662999999998, -2.176780000000008], [34.63074, -2.177129999999977], [34.63434000000001, -2.1785300000000234], [34.638329999999996, -2.178519999999992], [34.64596999999998, -2.1780299999999784], [34.64825999999999, -2.1803300000000263], [34.65044, -2.1821499999999787], [34.65676000000002, -2.1830400000000054], [34.66611, -2.184820000000002], [34.66836000000001, -2.1839499999999816], [34.67376999999999, -2.1835100000000125], [34.67741000000001, -2.1836099999999874], [34.68135000000001, -2.180880000000002], [34.68534, -2.180880000000002], [34.691599999999994, -2.179869999999994], [34.69488000000001, -2.179840000000013], [34.696590000000015, -2.1821299999999724], [34.699760000000026, -2.1820999999999913], [34.70242999999999, -2.1829999999999927], [34.70463999999998, -2.184000000000026], [34.708259999999996, -2.1844600000000014], [34.710939999999994, -2.184880000000021], [34.71672000000001, -2.1844600000000014], [34.719330000000014, -2.182990000000018], [34.7235, -2.180870000000027], [34.7244, -2.178069999999991], [34.72743000000003, -2.178980000000024], [34.731899999999996, -2.17804000000001], [34.73642000000001, -2.1802900000000136], [34.74099000000001, -2.180880000000002], [34.74540000000002, -2.1821800000000167], [34.74986999999999, -2.1821899999999914], [34.75434999999999, -2.1817199999999843], [34.763329999999996, -2.1793799999999806], [34.76774999999998, -2.1761999999999944], [34.77091999999999, -2.1761700000000133], [34.78120999999999, -2.182110000000023], [34.78573, -2.1838900000000194], [34.790099999999995, -2.187189999999987], [34.79906999999997, -2.18531999999999], [34.80356999999998, -2.1839100000000258], [34.83037999999999, -2.112639999999999], [34.832749999999976, -2.111760000000004], [34.83494000000002, -2.113240000000019], [34.839440000000025, -2.1159599999999728], [34.85818999999998, -2.0695799999999736], [34.860929999999996, -2.068240000000003], [34.86045999999999, -2.0640999999999963], [34.863980000000026, -2.0468700000000126], [34.864919999999984, -2.029699999999991], [34.86577, -2.0160399999999754], [34.86392999999998, -1.9979599999999775], [34.863080000000025, -1.9947599999999852], [34.85282000000001, -1.9298800000000256], [34.850959999999986, -1.9208699999999794], [34.84372000000002, -1.9072199999999953], [34.84372000000002, -1.902750000000026], [34.84156999999999, -1.9003299999999967], [34.842809999999986, -1.8935399999999731], [34.84282000000002, -1.8890499999999975], [34.84107, -1.8845200000000089], [34.841549999999984, -1.8800600000000145], [34.843770000000006, -1.8764699999999834], [34.84643999999997, -1.87324000000001], [34.84100999999998, -1.8700299999999856], [34.83614, -1.8637600000000134], [34.83256, -1.8618799999999849], [34.828930000000014, -1.8574300000000221], [34.82270999999997, -1.841099999999983], [34.82801999999998, -1.8314599999999925], [34.83030000000002, -1.8256499999999958], [34.82988, -1.807479999999998], [34.82801999999998, -1.8029500000000098], [34.807860000000005, -1.7690099999999802], [34.79671999999999, -1.7604400000000169], [34.78768000000002, -1.7440300000000093], [34.78733999999997, -1.7395399999999765], [34.77202, -1.7172899999999913], [34.76308999999998, -1.709130000000016], [34.74651, -1.705469999999991], [34.72771, -1.673339999999996], [34.72633000000002, -1.6684700000000134], [34.7183, -1.6575100000000018], [34.70942000000002, -1.6520600000000059], [34.704909999999984, -1.6494500000000016], [34.67356000000001, -1.6162400000000048], [34.67034000000001, -1.6140300000000138], [34.64220999999998, -1.5832700000000273], [34.64265, -1.576439999999991], [34.64656000000002, -1.5710100000000013], [34.64654999999999, -1.567360000000008], [34.64526999999998, -1.5629599999999753], [34.65017999999998, -1.5641600000000153], [34.65557000000001, -1.560549999999978], [34.65786000000003, -1.5583799999999997], [34.66149999999999, -1.5507000000000062], [34.664559999999994, -1.5506799999999996], [34.67797999999999, -1.5537800000000177], [34.68684999999999, -1.5479100000000017], [34.69141000000002, -1.54473999999999], [34.69992000000002, -1.5312099999999873], [34.69981999999999, -1.4949100000000044], [34.70400999999998, -1.488549999999975], [34.69403999999997, -1.4836599999999862], [34.70121, -1.444279999999992], [34.73343999999997, -1.431570000000022], [34.75409000000002, -1.4247700000000236], [34.758519999999976, -1.4225400000000263], [34.768880000000024, -1.4179100000000062], [34.77202, -1.4148099999999886], [34.77656000000002, -1.4124800000000164], [34.780700000000024, -1.4116300000000024], [34.800779999999975, -1.4233699999999772], [34.822490000000016, -1.434410000000014], [34.90841, -1.4838700000000242], [34.91207000000003, -1.4845700000000193], [34.91435000000001, -1.4875499999999988], [34.93858, -1.5020400000000225], [34.95594999999997, -1.5098600000000033], [34.973310000000026, -1.5211300000000278], [35.000819999999976, -1.5365100000000211]]]], "type": "MultiPolygon"}}]};
+const LX_BASEMAPS   = [{"name": "CartoDB Positron (Light)", "url": "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", "attr": "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> &copy; <a href=\"https://carto.com/\">CARTO</a>"}, {"name": "CartoDB Dark Matter", "url": "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", "attr": "&copy; OpenStreetMap &copy; CARTO"}, {"name": "OpenStreetMap", "url": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", "attr": "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors"}, {"name": "Esri World Imagery", "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", "attr": "Tiles &copy; Esri"}];
+const LX_GEOMTYPE   = "polygon";
+const LX_STYLEINFO  = {"type": "single", "field": null, "legend": [{"label": "Serengeti", "style": {"fill": "#3f8650", "fillOpacity": 1.0, "stroke": "#232323", "strokeOpacity": 1.0, "weight": 0.8, "dashArray": null, "radius": 6, "shape": "circle"}}]};
+const LX_POPUP_FLDS = ["SITE_ID", "SITE_PID", "SITE_TYPE", "NAME_ENG", "NAME", "DESIG", "DESIG_ENG", "DESIG_TYPE", "IUCN_CAT", "INT_CRIT", "REALM", "REP_M_AREA", "GIS_M_AREA", "REP_AREA", "GIS_AREA", "NO_TAKE", "NO_TK_AREA", "STATUS", "STATUS_YR", "GOV_TYPE", "GOVSUBTYPE", "OWN_TYPE", "OWNSUBTYPE", "MANG_AUTH", "MANG_PLAN", "VERIF", "METADATAID", "PRNT_ISO3", "ISO3", "SUPP_INFO", "CONS_OBJ", "INLND_WTRS", "OECM_ASMT"];
+let   LX_DARK       = false;
+
+// ── Visibility state (Set of visible legend labels) ────────────────────────────
+const lxVisible = new Set(
+  LX_STYLEINFO.legend.map(e => e.label)
+);
+
+// ── Map ───────────────────────────────────────────────────────────────────────
+const lxMap = L.map('lx-map', {zoomControl:true});
+L.control.scale({position:'bottomright',metric:true,imperial:false}).addTo(lxMap);
+if(typeof L.control.fullscreen !== 'undefined')
+  L.control.fullscreen({position:'topright'}).addTo(lxMap);
+
+let lxTile = null;
+function lxSwitchBasemap(idx) {
+  const bm = LX_BASEMAPS[parseInt(idx)];
+  if(lxTile) lxMap.removeLayer(lxTile);
+  lxTile = L.tileLayer(bm.url, {attribution:bm.attr, maxZoom:20}).addTo(lxMap);
+  document.getElementById('lx-bm-sel').value = idx;
+}
+const bmSel = document.getElementById('lx-bm-sel');
+LX_BASEMAPS.forEach((bm,i) => {
+  const o = document.createElement('option');
+  o.value = i; o.textContent = bm.name; bmSel.appendChild(o);
+});
+lxSwitchBasemap(0);
+
+// ── Style helpers ─────────────────────────────────────────────────────────────
+function lxLeafletStyle(feat) {
+  const s = feat.properties._style || {};
+  return {
+    fillColor:   s.fill        || '#3388ff',
+    fillOpacity: s.fillOpacity ?? 0.65,
+    color:       s.stroke      || '#333',
+    weight:      s.weight      || 1.5,
+    dashArray:   s.dashArray   || null,
+    opacity:     s.strokeOpacity ?? 1,
+  };
+}
+function lxHoverStyle(feat) {
+  const s = feat.properties._style || {};
+  return {
+    fillColor:   s.fill || '#3388ff',
+    fillOpacity: Math.min(1, (s.fillOpacity ?? 0.65) + 0.18),
+    color:       '#111',
+    weight:      Math.max(2, (s.weight || 1.5) + 1),
+    dashArray:   s.dashArray || null,
+    opacity:     1,
+  };
+}
+function lxPointToLayer(feat, latlng) {
+  const s      = feat.properties._style || {};
+  const radius = s.radius || 6;
+  const shape  = s.shape  || 'circle';
+  if(shape === 'circle') {
+    return L.circleMarker(latlng, {
+      radius,
+      fillColor:   s.fill        || '#3388ff',
+      fillOpacity: s.fillOpacity ?? 0.8,
+      color:       s.stroke      || '#333',
+      weight:      s.weight      || 1.5,
+    });
+  }
+  const sz=radius*2+4, cx=sz/2, cy=sz/2, r=radius;
+  const fa=s.fillOpacity??0.8, fi=s.fill||'#3388ff',
+        st=s.stroke||'#333',   sw=s.weight||1.5;
+  let svg='';
+  if(shape==='square')
+    svg=`<rect x="${cx-r}" y="${cy-r}" width="${r*2}" height="${r*2}" rx="2"
+      fill="${fi}" fill-opacity="${fa}" stroke="${st}" stroke-width="${sw}"/>`;
+  else if(shape==='diamond'){
+    const pts=`${cx},${cy-r} ${cx+r},${cy} ${cx},${cy+r} ${cx-r},${cy}`;
+    svg=`<polygon points="${pts}" fill="${fi}" fill-opacity="${fa}"
+      stroke="${st}" stroke-width="${sw}"/>`;
+  }else if(shape==='triangle'){
+    const pts=`${cx},${cy-r} ${cx+r},${cy+r} ${cx-r},${cy+r}`;
+    svg=`<polygon points="${pts}" fill="${fi}" fill-opacity="${fa}"
+      stroke="${st}" stroke-width="${sw}"/>`;
+  }else{
+    svg=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fi}"
+      fill-opacity="${fa}" stroke="${st}" stroke-width="${sw}"/>`;
+  }
+  return L.marker(latlng, {icon: L.divIcon({
+    html:`<svg width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}"
+      xmlns="http://www.w3.org/2000/svg">${svg}</svg>`,
+    className:'', iconSize:[sz,sz], iconAnchor:[sz/2,sz/2],
+  })});
+}
+
+// ── Tooltip ───────────────────────────────────────────────────────────────────
+const lxTip = L.tooltip({sticky:true, opacity:1, className:'lx-tip'});
+
+// ── GeoJSON layer (filter uses lxVisible set) ─────────────────────────────────
+const lxLayer = L.geoJSON(LX_GEOJSON, {
+  style:        lxLeafletStyle,
+  pointToLayer: lxPointToLayer,
+  filter: feat => lxVisible.has(feat.properties._legend_label),
+  onEachFeature: (feat, layer) => {
+    const p     = feat.properties;
+    const label = p._label || '';
+
+    // Popup
+    const rows = LX_POPUP_FLDS
+      .filter(k => p[k] !== undefined)
+      .map(k => `<tr><td>${k}</td><td>${p[k]||''}</td></tr>`)
+      .join('');
+    layer.bindPopup(
+      `<div class="lx-popup">
+        ${label ? `<div class="pop-name">${label}</div>` : ''}
+        ${rows
+          ? `<table>${rows}</table>`
+          : '<em style="opacity:.45;font-size:11px">No attributes</em>'}
+       </div>`,
+      {maxWidth:280}
+    );
+
+    // Hover (polygon/line only)
+    layer.on('mouseover', e => {
+      if(LX_GEOMTYPE !== 'point') {
+        layer.setStyle(lxHoverStyle(feat));
+        layer.bringToFront();
+      }
+      lxTip.setContent(
+        `<strong>${label || p._legend_label || 'Feature'}</strong>`);
+      layer.bindTooltip(lxTip).openTooltip(e.latlng);
+    });
+    layer.on('mousemove', e => lxTip.setLatLng(e.latlng));
+    layer.on('mouseout',  () => {
+      if(LX_GEOMTYPE !== 'point') lxLayer.resetStyle(layer);
+      layer.closeTooltip();
+    });
+  }
+}).addTo(lxMap);
+
+try { lxMap.fitBounds(lxLayer.getBounds(), {padding:[20,20]}); }
+catch(e) { lxMap.setView([0,20], 3); }
+
+document.getElementById('lx-count').textContent =
+  LX_GEOJSON.features.length.toLocaleString() + ' features';
+
+// ── Checkbox legend — tick / untick ───────────────────────────────────────────
+// Re-applies the GeoJSON filter by clearing and re-adding all features.
+function lxRefreshLayer() {
+  lxLayer.clearLayers();
+  lxLayer.addData(LX_GEOJSON);
+}
+
+function lxUpdateAllBtn() {
+  const cbs       = [...document.querySelectorAll('.leg-cb')];
+  const allOn     = cbs.every(c => c.checked);
+  const noneOn    = cbs.every(c => !c.checked);
+  const btn       = document.getElementById('leg-all-btn');
+  btn.textContent = allOn ? 'Hide all' : 'Show all';
+}
+
+document.querySelectorAll('.leg-cb').forEach(cb => {
+  cb.addEventListener('change', () => {
+    const lbl  = cb.dataset.label;
+    const item = cb.closest('.leg-item');
+    if(cb.checked) {
+      lxVisible.add(lbl);
+      item.classList.remove('unchecked');
+    } else {
+      lxVisible.delete(lbl);
+      item.classList.add('unchecked');
+    }
+    lxRefreshLayer();
+    lxUpdateAllBtn();
+  });
+});
+
+// "Hide all / Show all" master toggle
+let lxAllOn = true;
+function lxToggleAll() {
+  lxAllOn = !lxAllOn;
+  document.querySelectorAll('.leg-cb').forEach(cb => {
+    cb.checked = lxAllOn;
+    const item = cb.closest('.leg-item');
+    item.classList.toggle('unchecked', !lxAllOn);
+    if(lxAllOn) lxVisible.add(cb.dataset.label);
+    else        lxVisible.delete(cb.dataset.label);
+  });
+  lxRefreshLayer();
+  document.getElementById('leg-all-btn').textContent =
+    lxAllOn ? 'Hide all' : 'Show all';
+}
+
+// ── Dark / light theme ────────────────────────────────────────────────────────
+function lxToggleTheme() {
+  LX_DARK = !LX_DARK;
+  const sb  = document.getElementById('lx-sb');
+  const btn = document.getElementById('lx-theme-btn');
+  sb.classList.toggle('dark',  LX_DARK);
+  sb.classList.toggle('light', !LX_DARK);
+  btn.textContent = LX_DARK ? '☀ Light mode' : '☾ Dark mode';
+}
+if(LX_DARK) {
+  document.getElementById('lx-sb').classList.replace('light','dark');
+  document.getElementById('lx-theme-btn').textContent = '☀ Light mode';
+}
+
+// ── Embed code panel ──────────────────────────────────────────────────────────
+// Shows a copy-ready snippet in the sidebar.
+// The snippet includes:
+//   • Two CDN <link> tags (add to <head>)
+//   • The complete <div class="lx-app">…</div> with sidebar + map
+//   • Two CDN <script> tags
+//   • One <script> with all JS and inlined GeoJSON data
+//   • One <style> block with all CSS
+// Everything is already on this page — we just extract it.
+
+let lxEmbedOpen = false;
+
+function lxToggleEmbed() {
+  lxEmbedOpen = !lxEmbedOpen;
+  const panel  = document.getElementById('embed-panel');
+  const togBtn = document.getElementById('embed-toggle-btn');
+  panel.classList.toggle('open', lxEmbedOpen);
+  togBtn.textContent = lxEmbedOpen
+    ? '✕  Hide embed code'
+    : '</> Show embed code';
+  if(lxEmbedOpen) lxBuildEmbed();
+}
+
+function lxBuildEmbed() {
+  const cdn_head = [
+    '  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>',
+    '  <link rel="stylesheet" href="https://unpkg.com/leaflet-fullscreen@1.0.2/dist/leaflet.fullscreen.css"/>',
+  ].join('\n');
+
+  const cdn_scripts = [
+    '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>',
+    '<script src="https://unpkg.com/leaflet-fullscreen@1.0.2/dist/Leaflet.fullscreen.min.js"><\/script>',
+  ].join('\n');
+
+  // Grab live sidebar HTML (reflects current state)
+  const sidebarHTML = document.getElementById('lx-sb').outerHTML;
+
+  // Grab the page CSS
+  const cssText = Array.from(document.styleSheets)
+    .flatMap(ss => { try { return Array.from(ss.cssRules).map(r=>r.cssText); } catch{return[];} })
+    .join('\n');
+
+  // Grab the main script (last <script> on the page)
+  const scripts   = document.querySelectorAll('script');
+  const jsContent = scripts[scripts.length-1].textContent.trim();
+
+  const snippet = [
+    `<!-- ═══ EMBED MAP ═══`,
+    `     1. Add to <head>:`,
+    cdn_head,
+    `     2. Paste this block into <body>:`,
+    `═══ -->`,
+    `<style>`,
+    `.lx-app{display:flex;height:600px;overflow:hidden}`,
+    `#lx-map{flex:1;min-width:0}`,
+    cssText,
+    `</style>`,
+    `<div class="lx-app">`,
+    sidebarHTML,
+    `  <div id="lx-map"></div>`,
+    `</div>`,
+    cdn_scripts,
+    `<script>`,
+    jsContent,
+    `<\/script>`,
+    `<!-- ═══ END EMBED ═══ -->`,
+  ].join('\n');
+
+  document.getElementById('embed-box').value = snippet;
+}
+
+function lxCopyEmbed() {
+  const box = document.getElementById('embed-box');
+  const btn = document.getElementById('embed-copy-btn');
+  const txt = box.value;
+  const done = () => {
+    btn.textContent = '✓ Copied to clipboard!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy snippet';
+      btn.classList.remove('copied');
+    }, 2200);
+  };
+  if(navigator.clipboard) {
+    navigator.clipboard.writeText(txt).then(done).catch(() => {
+      box.select(); document.execCommand('copy'); done();
+    });
+  } else {
+    box.select(); document.execCommand('copy'); done();
+  }
+}
+
+</script>
+</body>
+</html>
